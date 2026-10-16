@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><title>FrameForge Animator</title>
+<style>
+:root{--bg:#1e1f24;--pn:#2a2c33;--ac:#4f8cff;--tx:#e6e6e6;--bd:#3a3d46}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--tx);font:13px Segoe UI,sans-serif;display:grid;grid-template:"top top top" 44px "tools stage side" 1fr "tl tl tl" 170px/56px 1fr 240px;height:100vh;overflow:hidden;user-select:none}
+#top{grid-area:top;background:var(--pn);display:flex;align-items:center;gap:6px;padding:0 8px;border-bottom:1px solid var(--bd)}
+#tools{grid-area:tools;background:var(--pn);display:flex;flex-direction:column;gap:4px;padding:6px;border-right:1px solid var(--bd)}
+#side{grid-area:side;background:var(--pn);padding:8px;overflow:auto;border-left:1px solid var(--bd)}
+#stage{grid-area:stage;position:relative;overflow:hidden;background:repeating-conic-gradient(#25262c 0 25%,#202126 0 50%) 0 0/20px 20px}
+#tl{grid-area:tl;background:var(--pn);border-top:1px solid var(--bd);display:flex;flex-direction:column}
+button,select,input{background:#353842;color:var(--tx);border:1px solid var(--bd);border-radius:5px;padding:4px 8px;font:inherit}
+button:hover{border-color:var(--ac)}button.on{background:var(--ac);border-color:var(--ac)}
+#tools button{width:44px;height:40px;font-size:18px;padding:0}
+h3{margin:12px 0 6px;font-size:11px;text-transform:uppercase;color:#9aa;letter-spacing:.08em}
+label{display:flex;justify-content:space-between;align-items:center;margin:4px 0;gap:6px}label input[type=range]{width:120px}
+#wrap{position:absolute;transform-origin:0 0;box-shadow:0 0 0 1px #000,0 8px 30px #0008}
+#wrap canvas{position:absolute;left:0;top:0}
+#frames{flex:1;overflow:auto;display:flex;gap:4px;padding:6px;align-items:flex-start}
+.fr{flex:none;width:96px;cursor:pointer;border:2px solid transparent;border-radius:4px;background:#fff;position:relative}
+.fr.cur{border-color:var(--ac)}.fr canvas{width:92px;display:block}.fr span{position:absolute;left:3px;top:1px;color:#333;font-size:10px}
+#layers div{display:flex;gap:4px;align-items:center;padding:4px;border-radius:4px;margin:2px 0;background:#30333b;cursor:pointer}
+#layers div.cur{outline:1px solid var(--ac)}#layers input[type=text]{flex:1;width:0}
+#tlbar{display:flex;gap:6px;padding:6px;align-items:center;border-bottom:1px solid var(--bd)}
+.sw{width:22px;height:22px;border-radius:4px;display:inline-block;margin:2px;cursor:pointer;border:1px solid #0006}
+#status{margin-left:auto;color:#9aa}
+</style></head><body>
+<div id="top">
+<b style="color:var(--ac)">FrameForge</b>
+<button id="newB" title="New (Ctrl+N)">New</button><button id="openB" title="Open (Ctrl+O)">Open</button><button id="saveB" title="Save (Ctrl+S)">Save</button>
+<button id="undoB" title="Ctrl+Z">↶</button><button id="redoB" title="Ctrl+Y">↷</button>
+<button id="pngB">Export PNG</button><button id="seqB">Export frames</button><button id="vidB">Export video</button><button id="sheetB">Sprite sheet</button>
+<span id="status"></span><input type="file" id="fileIn" accept=".ffa,.json" hidden>
+</div>
+<div id="tools"></div>
+<div id="stage"><div id="wrap"><canvas id="bgC"></canvas><canvas id="onC"></canvas><canvas id="viewC"></canvas><canvas id="prevC"></canvas></div></div>
+<div id="side">
+<h3>Colour</h3><label>Primary <input type="color" id="col" value="#222222"></label><label>Secondary <input type="color" id="col2" value="#ffffff"></label><div id="pal"></div>
+<h3>Brush</h3>
+<label>Size <input type="range" id="size" min="1" max="200" value="6"></label>
+<label>Opacity <input type="range" id="alpha" min="1" max="100" value="100"></label>
+<label>Smoothing <input type="range" id="smooth" min="0" max="95" value="40"></label>
+<label>Pressure sim <input type="checkbox" id="press" checked></label>
+<label>Fill shapes <input type="checkbox" id="fillS"></label>
+<label>Mirror X <input type="checkbox" id="mirX"></label><label>Mirror Y <input type="checkbox" id="mirY"></label>
+<label>Fill tolerance <input type="range" id="tol" min="0" max="120" value="24"></label>
+<h3>Layers</h3><div id="layers"></div>
+<button id="addL">+ Layer</button> <button id="delL">Delete</button> <button id="upL">▲</button> <button id="dnL">▼</button> <button id="mergeL">Merge ↓</button>
+<label>Layer opacity <input type="range" id="lop" min="0" max="100" value="100"></label>
+<label>Blend <select id="blend"><option>source-over</option><option>multiply</option><option>screen</option><option>overlay</option><option>darken</option><option>lighten</option><option>difference</option></select></label>
+<h3>Canvas</h3>
+<label>Width <input type="number" id="cw" value="1280" style="width:80px"></label><label>Height <input type="number" id="ch" value="720" style="width:80px"></label>
+<button id="resizeB">Apply size</button>
+<label>Background <input type="color" id="bgcol" value="#ffffff"></label><label>Transparent bg <input type="checkbox" id="bgT"></label>
+<label>Grid <input type="checkbox" id="grid"></label>
+<h3>Frame tools</h3>
+<button id="flipH">Flip H</button> <button id="flipV">Flip V</button> <button id="clrF">Clear</button>
+<label>Shift X/Y <span><button id="sL">←</button><button id="sR">→</button><button id="sU">↑</button><button id="sD">↓</button></span></label>
+<button id="tweenB" title="Generates blended in-betweens between this frame and the next">Insert in-between</button>
+</div>
+<div id="tl">
+<div id="tlbar">
+<button id="playB" title="Space">▶ Play</button><button id="prevF">⏮</button><button id="nextF">⏭</button>
+<button id="addF" title="Insert blank frame">+ Frame</button><button id="dupF" title="Duplicate (Ctrl+D)">Duplicate</button><button id="delF">Delete</button><button id="mvL">◀ Move</button><button id="mvR">Move ▶</button>
+<label>FPS <input type="number" id="fps" value="12" min="1" max="60" style="width:56px"></label>
+<label>Loop <select id="loopM"><option>loop</option><option>ping-pong</option><option>once</option></select></label>
+<label>Onion <input type="checkbox" id="onion" checked></label><label>Before <input type="number" id="onB" value="1" min="0" max="5" style="width:44px"></label><label>After <input type="number" id="onA" value="1" min="0" max="5" style="width:44px"></label>
+<label>Zoom <input type="range" id="zoom" min="10" max="400" value="60"></label>
+</div><div id="frames"></div></div>
+<script>
+const $=id=>document.getElementById(id);
+let W=1280,H=720,frames=[],layerMeta=[],cf=0,cl=0,tool='brush',playing=false,undo=[],redo=[],dirty=false;
+const view=$('viewC'),vctx=view.getContext('2d'),prev=$('prevC'),pctx=prev.getContext('2d'),onC=$('onC'),octx=onC.getContext('2d'),bgC=$('bgC'),bctx=bgC.getContext('2d');
+const mk=()=>{const c=document.createElement('canvas');c.width=W;c.height=H;return c};
+const TOOLS=[['brush','✎','B'],['pencil','✏','P'],['eraser','⌫','E'],['line','╱','L'],['rect','▭','R'],['ellipse','◯','O'],['fill','🪣','G'],['picker','💧','I'],['spray','∴','S'],['move','✥','V'],['pan','✋','H']];
+TOOLS.forEach(([t,i,k])=>{const b=document.createElement('button');b.textContent=i;b.title=t+' ('+k+')';b.dataset.t=t;b.onclick=()=>setTool(t);$('tools').append(b)});
+function setTool(t){tool=t;document.querySelectorAll('#tools button').forEach(b=>b.classList.toggle('on',b.dataset.t==t))}
+['#000000','#ffffff','#e53935','#fb8c00','#fdd835','#43a047','#00acc1','#1e88e5','#5e35b1','#d81b60','#6d4c41','#9e9e9e','#ffccbc','#c8e6c9','#bbdefb','#263238'].forEach(c=>{const s=document.createElement('span');s.className='sw';s.style.background=c;s.onclick=e=>{$(e.shiftKey?'col2':'col').value=c};$('pal').append(s)});
+function newFrame(){return layerMeta.map(()=>mk())}
+function init(w,h){W=w;H=h;[view,prev,onC,bgC].forEach(c=>{c.width=W;c.height=H});$('wrap').style.width=W+'px';$('wrap').style.height=H+'px';layerMeta=[{name:'Layer 1',vis:true,op:1,blend:'source-over',lock:false}];frames=[newFrame()];cf=0;cl=0;undo=[];redo=[];fit();refresh()}
+function fit(){const s=$('stage');const z=Math.min((s.clientWidth-40)/W,(s.clientHeight-40)/H);$('zoom').value=Math.round(z*100);zoomApply(true)}
+let panX=20,panY=20;function zoomApply(center){const z=$('zoom').value/100,s=$('stage');if(center){panX=(s.clientWidth-W*z)/2;panY=(s.clientHeight-H*z)/2}$('wrap').style.transform=`translate(${panX}px,${panY}px) scale(${z})`}
+$('zoom').oninput=()=>zoomApply(true);
+$('stage').onwheel=e=>{e.preventDefault();const z=$('zoom');z.value=Math.max(10,Math.min(400,+z.value*(e.deltaY<0?1.1:0.9)));zoomApply(true)};
+function composite(ctx,fi,withBg){ctx.clearRect(0,0,W,H);if(withBg&&!$('bgT').checked){ctx.fillStyle=$('bgcol').value;ctx.fillRect(0,0,W,H)}frames[fi].forEach((c,i)=>{const m=layerMeta[i];if(!m.vis)return;ctx.globalAlpha=m.op;ctx.globalCompositeOperation=m.blend;ctx.drawImage(c,0,0)});ctx.globalAlpha=1;ctx.globalCompositeOperation='source-over'}
+function render(){bctx.clearRect(0,0,W,H);if(!$('bgT').checked){bctx.fillStyle=$('bgcol').value;bctx.fillRect(0,0,W,H)}
+if($('grid').checked){bctx.strokeStyle='#0002';bctx.lineWidth=1;for(let x=0;x<W;x+=40){bctx.beginPath();bctx.moveTo(x+.5,0);bctx.lineTo(x+.5,H);bctx.stroke()}for(let y=0;y<H;y+=40){bctx.beginPath();bctx.moveTo(0,y+.5);bctx.lineTo(W,y+.5);bctx.stroke()}}
+octx.clearRect(0,0,W,H);if($('onion').checked&&!playing){const t=mk(),tc=t.getContext('2d');const draw=(i,col,a)=>{if(i<0||i>=frames.length)return;composite(tc,i,false);tc.globalCompositeOperation='source-in';tc.fillStyle=col;tc.fillRect(0,0,W,H);tc.globalCompositeOperation='source-over';octx.globalAlpha=a;octx.drawImage(t,0,0)};for(let k=1;k<=+$('onB').value;k++)draw(cf-k,'#ff3b3b',.3/k);for(let k=1;k<=+$('onA').value;k++)draw(cf+k,'#2f9bff',.3/k);octx.globalAlpha=1}
+composite(vctx,cf,false)}
+function thumbs(){const box=$('frames');box.innerHTML='';frames.forEach((f,i)=>{const d=document.createElement('div');d.className='fr'+(i==cf?' cur':'');const c=document.createElement('canvas');c.width=184;c.height=Math.round(184*H/W);const x=c.getContext('2d');x.fillStyle=$('bgcol').value;x.fillRect(0,0,c.width,c.height);const t=mk();composite(t.getContext('2d'),i,false);x.drawImage(t,0,0,c.width,c.height);d.append(c);const s=document.createElement('span');s.textContent=i+1;d.append(s);d.onclick=()=>{cf=i;refresh()};box.append(d)});box.children[cf]?.scrollIntoView({inline:'nearest'})}
+function layersUI(){const box=$('layers');box.innerHTML='';for(let i=layerMeta.length-1;i>=0;i--){const m=layerMeta[i],d=document.createElement('div');if(i==cl)d.className='cur';d.innerHTML=`<input type=checkbox ${m.vis?'checked':''} title=Visible><input type=text value="${m.name}"><button title=Lock>${m.lock?'🔒':'🔓'}</button>`;const[v,n,l]=d.children;v.onchange=()=>{m.vis=v.checked;render();thumbs()};n.onchange=()=>m.name=n.value;l.onclick=e=>{e.stopPropagation();m.lock=!m.lock;layersUI()};d.onclick=()=>{cl=i;$('lop').value=m.op*100;$('blend').value=m.blend;layersUI()};box.append(d)}}
+function refresh(){render();thumbs();layersUI();$('status').textContent=`Frame ${cf+1}/${frames.length} · ${layerMeta[cl].name} · ${W}×${H}${dirty?' · unsaved':''}`}
+// history
+function snap(){return{f:frames.map(fr=>fr.map(c=>c.getContext('2d').getImageData(0,0,W,H))),m:JSON.parse(JSON.stringify(layerMeta)),cf,cl,W,H}}
+function restore(s){W=s.W;H=s.H;[view,prev,onC,bgC].forEach(c=>{c.width=W;c.height=H});layerMeta=s.m;frames=s.f.map(fr=>fr.map(d=>{const c=mk();c.getContext('2d').putImageData(d,0,0);return c}));cf=Math.min(s.cf,frames.length-1);cl=Math.min(s.cl,layerMeta.length-1);refresh()}
+function push(){undo.push(snap());if(undo.length>40)undo.shift();redo=[];dirty=true}
+function doUndo(){if(!undo.length)return;redo.push(snap());restore(undo.pop())}function doRedo(){if(!redo.length)return;undo.push(snap());restore(redo.pop())}
+$('undoB').onclick=doUndo;$('redoB').onclick=doRedo;
+// drawing
+const cur=()=>frames[cf][cl];let down=false,pts=[],start,last,sm,moveSrc,panStart;
+function pos(e){const r=view.getBoundingClientRect();return{x:(e.clientX-r.left)*W/r.width,y:(e.clientY-r.top)*H/r.height,p:e.pressure||.5}}
+function mirrors(p){const a=[p];if($('mirX').checked)a.push({...p,x:W-p.x});if($('mirY').checked)a.slice().forEach(q=>a.push({...q,y:H-q.y}));return a}
+function style(ctx,er){ctx.lineCap='round';ctx.lineJoin='round';ctx.strokeStyle=ctx.fillStyle=$('col').value;ctx.globalAlpha=$('alpha').value/100;ctx.globalCompositeOperation=er?'destination-out':'source-over';ctx.imageSmoothingEnabled=tool!='pencil'}
+function seg(ctx,a,b){const base=+$('size').value;const w=tool=='pencil'?Math.max(1,Math.round(base/3)):base*($('press').checked?(.4+ (b.p??.5)*1.2):1);ctx.lineWidth=w;mirrors(a).forEach((ma,i)=>{const mb=mirrors(b)[i];ctx.beginPath();ctx.moveTo(ma.x,ma.y);ctx.lineTo(mb.x,mb.y);ctx.stroke()})}
+function spray(ctx,p){const r=+$('size').value*2;for(let i=0;i<30;i++){const a=Math.random()*6.283,d=Math.random()*r;mirrors({x:p.x+Math.cos(a)*d,y:p.y+Math.sin(a)*d}).forEach(q=>ctx.fillRect(q.x,q.y,1.5,1.5))}}
+function shape(ctx,a,b,sh){const fill=$('fillS').checked;ctx.lineWidth=+$('size').value;if(sh&&tool!='line'){const d=Math.max(Math.abs(b.x-a.x),Math.abs(b.y-a.y));b={x:a.x+Math.sign(b.x-a.x)*d,y:a.y+Math.sign(b.y-a.y)*d}}
+mirrors(a).forEach((ma,i)=>{const mb=mirrors(b)[i];ctx.beginPath();if(tool=='line'){ctx.moveTo(ma.x,ma.y);ctx.lineTo(mb.x,mb.y)}else if(tool=='rect')ctx.rect(ma.x,ma.y,mb.x-ma.x,mb.y-ma.y);else ctx.ellipse((ma.x+mb.x)/2,(ma.y+mb.y)/2,Math.abs(mb.x-ma.x)/2,Math.abs(mb.y-ma.y)/2,0,0,6.2832);fill&&tool!='line'?ctx.fill():ctx.stroke()})}
+function flood(x,y){x|=0;y|=0;if(x<0||y<0||x>=W||y>=H)return;const c=cur().getContext('2d'),src=mk();composite(src.getContext('2d'),cf,false);const sd=src.getContext('2d').getImageData(0,0,W,H).data,img=c.getImageData(0,0,W,H),d=img.data;const i0=(y*W+x)*4,t=[sd[i0],sd[i0+1],sd[i0+2],sd[i0+3]],tol=+$('tol').value;const hex=$('col').value,fc=[parseInt(hex.slice(1,3),16),parseInt(hex.slice(3,5),16),parseInt(hex.slice(5,7),16)],A=Math.round($('alpha').value*2.55);const seen=new Uint8Array(W*H),st=[x+y*W];const ok=i=>{const j=i*4;return Math.abs(sd[j]-t[0])+Math.abs(sd[j+1]-t[1])+Math.abs(sd[j+2]-t[2])+Math.abs(sd[j+3]-t[3])<=tol*2};
+while(st.length){const i=st.pop();if(seen[i]||!ok(i))continue;seen[i]=1;const j=i*4;d[j]=fc[0];d[j+1]=fc[1];d[j+2]=fc[2];d[j+3]=A;const px=i%W;if(px>0)st.push(i-1);if(px<W-1)st.push(i+1);if(i>=W)st.push(i-W);if(i<W*(H-1))st.push(i+W)}
+// grow 1px to hide antialias seams
+c.putImageData(img,0,0)}
+view.onpointerdown=prev.onpointerdown=e=>{if(e.button==1||tool=='pan'){panStart={x:e.clientX-panX,y:e.clientY-panY};down='pan';return}
+const m=layerMeta[cl];if(m.lock&&!['picker'].includes(tool)){$('status').textContent='Layer is locked';return}
+const p=pos(e);if(tool=='picker'){const t=mk(),x=t.getContext('2d');composite(x,cf,true);const d=x.getImageData(p.x|0,p.y|0,1,1).data;$('col').value='#'+[d[0],d[1],d[2]].map(v=>v.toString(16).padStart(2,'0')).join('');return}
+push();if(tool=='fill'){flood(p.x,p.y);refresh();return}
+down=true;start=last=sm=p;prev.setPointerCapture(e.pointerId);if(tool=='move'){moveSrc=mk();moveSrc.getContext('2d').drawImage(cur(),0,0)}
+if(tool=='spray'){const c=cur().getContext('2d');style(c);spray(c,p);render()}};
+prev.style.touchAction='none';
+prev.onpointermove=e=>{if(down=='pan'){panX=e.clientX-panStart.x;panY=e.clientY-panStart.y;const z=$('zoom').value/100;$('wrap').style.transform=`translate(${panX}px,${panY}px) scale(${z})`;return}
+if(!down)return;const p=pos(e),c=cur().getContext('2d');
+if(tool=='brush'||tool=='pencil'||tool=='eraser'){const k=$('smooth').value/100;sm={x:sm.x*k+p.x*(1-k),y:sm.y*k+p.y*(1-k),p:p.p};style(c,tool=='eraser');seg(c,last,sm);last=sm;render()}
+else if(tool=='spray'){style(c);spray(c,p);render()}
+else if(tool=='move'){c.clearRect(0,0,W,H);c.drawImage(moveSrc,p.x-start.x,p.y-start.y);render()}
+else{pctx.clearRect(0,0,W,H);style(pctx);shape(pctx,start,p,e.shiftKey)}};
+prev.onpointerup=e=>{if(down=='pan'){down=false;return}if(!down)return;down=false;if(['line','rect','ellipse'].includes(tool)){pctx.clearRect(0,0,W,H);const c=cur().getContext('2d');style(c);shape(c,start,pos(e),e.shiftKey)}const c=cur().getContext('2d');c.globalAlpha=1;c.globalCompositeOperation='source-over';refresh()};
+// frames
+function blankInsert(at){frames.splice(at,0,newFrame())}
+$('addF').onclick=()=>{push();blankInsert(cf+1);cf++;refresh()};
+function dup(){push();const f=frames[cf].map(c=>{const n=mk();n.getContext('2d').drawImage(c,0,0);return n});frames.splice(cf+1,0,f);cf++;refresh()}
+$('dupF').onclick=dup;
+$('delF').onclick=()=>{push();if(frames.length==1)frames=[newFrame()];else{frames.splice(cf,1);cf=Math.min(cf,frames.length-1)}refresh()};
+$('mvL').onclick=()=>{if(cf>0){push();[frames[cf-1],frames[cf]]=[frames[cf],frames[cf-1]];cf--;refresh()}};
+$('mvR').onclick=()=>{if(cf<frames.length-1){push();[frames[cf+1],frames[cf]]=[frames[cf],frames[cf+1]];cf++;refresh()}};
+$('prevF').onclick=()=>{cf=(cf-1+frames.length)%frames.length;refresh()};$('nextF').onclick=()=>{cf=(cf+1)%frames.length;refresh()};
+$('tweenB').onclick=()=>{if(cf>=frames.length-1)return;push();const a=frames[cf],b=frames[cf+1];const f=layerMeta.map((_,i)=>{const n=mk(),x=n.getContext('2d');x.globalAlpha=.5;x.drawImage(a[i],0,0);x.drawImage(b[i],0,0);return n});frames.splice(cf+1,0,f);cf++;refresh()};
+// playback
+let timer,dir=1;function play(){playing=!playing;$('playB').textContent=playing?'■ Stop':'▶ Play';clearTimeout(timer);if(playing){const step=()=>{const mode=$('loopM').value;let n=cf+dir;if(n>=frames.length){if(mode=='loop')n=0;else if(mode=='ping-pong'){dir=-1;n=Math.max(0,frames.length-2)}else{play();return}}if(n<0){dir=1;n=Math.min(1,frames.length-1)}cf=n;render();$('status').textContent=`▶ ${cf+1}/${frames.length}`;timer=setTimeout(step,1000/$('fps').value)};step()}else refresh()}
+$('playB').onclick=play;
+// layers
+$('addL').onclick=()=>{push();layerMeta.splice(cl+1,0,{name:'Layer '+(layerMeta.length+1),vis:true,op:1,blend:'source-over',lock:false});frames.forEach(f=>f.splice(cl+1,0,mk()));cl++;refresh()};
+$('delL').onclick=()=>{if(layerMeta.length<2)return;push();layerMeta.splice(cl,1);frames.forEach(f=>f.splice(cl,1));cl=Math.max(0,cl-1);refresh()};
+function swapL(a,b){if(b<0||b>=layerMeta.length)return;push();[layerMeta[a],layerMeta[b]]=[layerMeta[b],layerMeta[a]];frames.forEach(f=>[f[a],f[b]]=[f[b],f[a]]);cl=b;refresh()}
+$('upL').onclick=()=>swapL(cl,cl+1);$('dnL').onclick=()=>swapL(cl,cl-1);
+$('mergeL').onclick=()=>{if(cl==0)return;push();const m=layerMeta[cl];frames.forEach(f=>{const x=f[cl-1].getContext('2d');x.globalAlpha=m.op;x.globalCompositeOperation=m.blend;x.drawImage(f[cl],0,0);x.globalAlpha=1;x.globalCompositeOperation='source-over';f.splice(cl,1)});layerMeta.splice(cl,1);cl--;refresh()};
+$('lop').oninput=()=>{layerMeta[cl].op=$('lop').value/100;render()};$('lop').onchange=thumbs;$('blend').onchange=()=>{layerMeta[cl].blend=$('blend').value;refresh()};
+// frame tools
+function xform(fn){push();const c=cur(),t=mk();t.getContext('2d').drawImage(c,0,0);const x=c.getContext('2d');x.clearRect(0,0,W,H);x.save();fn(x);x.drawImage(t,0,0);x.restore();refresh()}
+$('flipH').onclick=()=>xform(x=>{x.translate(W,0);x.scale(-1,1)});$('flipV').onclick=()=>xform(x=>{x.translate(0,H);x.scale(1,-1)});
+$('sL').onclick=()=>xform(x=>x.translate(-10,0));$('sR').onclick=()=>xform(x=>x.translate(10,0));$('sU').onclick=()=>xform(x=>x.translate(0,-10));$('sD').onclick=()=>xform(x=>x.translate(0,10));
+$('clrF').onclick=()=>{push();cur().getContext('2d').clearRect(0,0,W,H);refresh()};
+['bgcol','bgT','grid','onion','onB','onA'].forEach(i=>$(i).oninput=()=>{render();thumbs()});
+$('resizeB').onclick=()=>{const w=+$('cw').value,h=+$('ch').value;if(w<16||h<16||w>4096||h>4096)return alert('Size must be 16–4096');push();const ow=W,oh=H;W=w;H=h;[view,prev,onC,bgC].forEach(c=>{c.width=W;c.height=H});$('wrap').style.width=W+'px';$('wrap').style.height=H+'px';frames=frames.map(f=>f.map(c=>{const n=mk();n.getContext('2d').drawImage(c,0,0);return n}));fit();refresh()};
+// files
+function download(blob,name){const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),5000)}
+const flat=i=>{const c=mk();composite(c.getContext('2d'),i,true);return c};
+$('saveB').onclick=()=>{const data={app:'FrameForge',v:1,W,H,fps:+$('fps').value,bg:$('bgcol').value,layers:layerMeta,frames:frames.map(f=>f.map(c=>c.toDataURL()))};download(new Blob([JSON.stringify(data)]),'animation.ffa');dirty=false;refresh()};
+$('openB').onclick=()=>$('fileIn').click();
+$('fileIn').onchange=async e=>{const f=e.target.files[0];if(!f)return;const d=JSON.parse(await f.text());init(d.W,d.H);$('fps').value=d.fps;$('bgcol').value=d.bg;layerMeta=d.layers;frames=await Promise.all(d.frames.map(fr=>Promise.all(fr.map(src=>new Promise(r=>{const im=new Image();im.onload=()=>{const c=mk();c.getContext('2d').drawImage(im,0,0);r(c)};im.src=src})))));cf=0;cl=0;refresh();e.target.value=''};
+$('newB').onclick=()=>{if(dirty&&!confirm('Discard unsaved changes?'))return;init(+$('cw').value,+$('ch').value)};
+$('pngB').onclick=()=>flat(cf).toBlob(b=>download(b,`frame_${cf+1}.png`));
+$('seqB').onclick=async()=>{for(let i=0;i<frames.length;i++){await new Promise(r=>flat(i).toBlob(b=>{download(b,`frame_${String(i+1).padStart(4,'0')}.png`);r()}));await new Promise(r=>setTimeout(r,120))}};
+$('sheetB').onclick=()=>{const cols=Math.ceil(Math.sqrt(frames.length)),rows=Math.ceil(frames.length/cols),c=document.createElement('canvas');c.width=W*cols;c.height=H*rows;const x=c.getContext('2d');frames.forEach((_,i)=>x.drawImage(flat(i),(i%cols)*W,Math.floor(i/cols)*H));c.toBlob(b=>download(b,'spritesheet.png'))};
+$('vidB').onclick=async()=>{const c=mk(),x=c.getContext('2d'),st=c.captureStream(0),rec=new MediaRecorder(st,{mimeType:'video/webm;codecs=vp9',videoBitsPerSecond:8e6}),ch=[];rec.ondataavailable=e=>ch.push(e.data);rec.onstop=()=>download(new Blob(ch,{type:'video/webm'}),'animation.webm');rec.start();const tr=st.getVideoTracks()[0];$('status').textContent='Recording video…';for(let i=0;i<frames.length;i++){composite(x,i,true);if(!$('bgT').checked){}x.globalCompositeOperation='destination-over';x.fillStyle=$('bgcol').value;x.fillRect(0,0,W,H);x.globalCompositeOperation='source-over';tr.requestFrame();await new Promise(r=>setTimeout(r,1000/$('fps').value))}rec.stop();refresh()};
+// shortcuts
+addEventListener('keydown',e=>{if(e.target.tagName=='INPUT'&&e.target.type!='range'&&e.target.type!='checkbox')return;const k=e.key.toLowerCase();
+if(e.ctrlKey){if(k=='z'){e.preventDefault();e.shiftKey?doRedo():doUndo()}else if(k=='y'){e.preventDefault();doRedo()}else if(k=='s'){e.preventDefault();$('saveB').click()}else if(k=='o'){e.preventDefault();$('openB').click()}else if(k=='d'){e.preventDefault();dup()}else if(k=='n'){e.preventDefault();$('newB').click()}return}
+if(k==' '){e.preventDefault();play()}else if(k==','||k=='arrowleft')$('prevF').click();else if(k=='.'||k=='arrowright')$('nextF').click();else if(k=='['){$('size').value=Math.max(1,$('size').value-2)}else if(k==']'){$('size').value=+$('size').value+2}else if(k=='x'){const a=$('col').value;$('col').value=$('col2').value;$('col2').value=a}else if(k=='delete')$('clrF').click();else{const t=TOOLS.find(t=>t[2].toLowerCase()==k);if(t)setTool(t[0])}});
+addEventListener('resize',()=>zoomApply(true));
+addEventListener('beforeunload',e=>{if(dirty){e.preventDefault();e.returnValue=''}});
+setTool('brush');init(1280,720);
+</script></body></html>
